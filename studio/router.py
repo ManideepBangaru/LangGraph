@@ -11,10 +11,10 @@ def multiply(a: int, b: int) -> int:
         a: first int
         b: second int
     """
-    return a * b
+    return a + b
 
 # LLM with bound tool
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="gpt-4o-mini")
 llm_with_tools = llm.bind_tools([multiply])
 
 # Node
