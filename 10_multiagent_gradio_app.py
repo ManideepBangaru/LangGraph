@@ -1,5 +1,6 @@
 import gradio as gr
 import pandas as pd
+import plotly.express as px
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import MessagesState
@@ -8,7 +9,6 @@ from langchain_experimental.agents import create_pandas_dataframe_agent
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import START, StateGraph
 from langgraph.prebuilt import tools_condition, ToolNode
-from IPython.display import Image, display
 
 # Global variable to cache the dataset and its path
 cached_df = None
@@ -22,11 +22,10 @@ def initialize_tools(file, query):
             # Load the uploaded file into a DataFrame
             try:
                 cached_df = pd.read_csv(file.name)
-                print(cached_df.head())
                 cached_file_path = file.name
                 print("dataframe loaded successfully")
             except Exception as e:
-                return f"Error loading the dataset: {e}"
+                return f"Error loading the dataset: {e}", None
         else:
             print("Using cached dataframe")
         
@@ -37,7 +36,7 @@ def initialize_tools(file, query):
         )
 
         # Define the Pandas DataFrame Tool
-        def pandas_agent_tool(input_query: str) -> str:
+        def pandas_agent_tool(input_query: str):
             llm = llm_model
             pandas_agent = create_pandas_dataframe_agent(
                 llm, 
@@ -49,14 +48,30 @@ def initialize_tools(file, query):
                 "input": input_query,
                 "agent_scratchpad": f"Human: {input_query}\nAI: To answer this question, I need to use Python to analyze the dataframe. I'll use the python_repl_ast tool.\n\nAction: python_repl_ast\nAction Input: ",
             })
-            return response
+
+            # Check if the response contains Python code for Plotly
+            if "px." in response:
+                exec_globals = {}
+                try:
+                    # Execute the Python code in a controlled environment
+                    print("entered plot section ....")
+                    exec(response, {"df": cached_df, "px": px}, exec_globals)
+                    fig = exec_globals.get("fig")
+                    print(fig)
+                    if fig:
+                        return None, fig  # Return the Plotly figure
+                except Exception as e:
+                    return f"Error executing Plotly code: {e}", None
+
+            # If the response is not a Plotly figure
+            return response, None
 
         pandas_tool = Tool(
-                        name="PandasAgentTool",
-                        func=pandas_agent_tool,
-                        description="Useful for answering questions about a pandas DataFrame."
-                        )
-        
+            name="PandasAgentTool",
+            func=pandas_agent_tool,
+            description="Useful for answering questions about a pandas DataFrame."
+        )
+
         # Step 3: Define the Multiplication Tool
         def multiply_values(input_query: str) -> str:
             try:
@@ -71,8 +86,8 @@ def initialize_tools(file, query):
             name="MultiplicationTool",
             func=multiply_values,
             description="Useful for performing multiplication of two values. Input format: 'a * b'."
-            )
-        
+        )
+
         # Step 4: Create the LangGraph
         tools = [pandas_tool, multiplication_tool]
 
@@ -105,16 +120,17 @@ def initialize_tools(file, query):
 
         messages = [HumanMessage(content=query)]
         response = react_graph.invoke({"messages": messages})
-        return response["messages"][-1].content
+        return response["messages"][-1].content, None
 
     except Exception as e:
-        return f"Error: {e}"
+        return f"Error: {e}", None
 
 # Gradio interface
 def gradio_app(file, query):
     if file is None or query.strip() == "":
-        return "Please upload a CSV file and provide a query."
-    return initialize_tools(file, query)
+        return "Please upload a CSV file and provide a query.", None
+    response, plot = initialize_tools(file, query)
+    return response, plot
 
 # Create Gradio components
 with gr.Blocks() as app:
@@ -129,8 +145,9 @@ with gr.Blocks() as app:
         
         with gr.Column():
             response_output = gr.Markdown(label="Response")
+            plot_output = gr.Plot(label="Plot Output")  # Renders Plotly figures interactively
 
-    query_button.click(gradio_app, inputs=[file_input, query_input], outputs=[response_output])
+    query_button.click(gradio_app, inputs=[file_input, query_input], outputs=[response_output, plot_output])
 
 # Launch the app
 if __name__ == "__main__":
