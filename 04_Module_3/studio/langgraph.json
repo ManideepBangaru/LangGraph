@@ -1,0 +1,12 @@
+{
+    "dockerfile_lines": [],
+    "graphs": {
+        "ArithmeticAgentGraph": "./agent.py:ArithAgent",
+        "BreakpointGraph": "./dynamic_breakpoints.py:dynamic_breakpoint_graph"
+    },
+    "env": "../../lgEnv",
+    "python_version": "3.11",
+    "dependencies": [
+      "."
+    ]
+  }
