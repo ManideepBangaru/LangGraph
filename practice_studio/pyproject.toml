@@ -1,0 +1,9 @@
+[project]
+name = "practice-studio"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "langchain>=0.3.27",
+    "langgraph[dev]>=0.6.6",
+    "langgraph-cli[dev]>=0.4.0",
+]
