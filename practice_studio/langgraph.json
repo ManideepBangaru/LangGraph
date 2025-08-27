@@ -1,0 +1,9 @@
+{
+    "graphs" : {
+        "simple_graph" : "./simple.py:graph"
+    },
+    "env" : ".venv",
+    "dependencies" : [
+        "."
+    ]
+}
