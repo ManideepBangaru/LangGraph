@@ -33,7 +33,7 @@ class CoordinationState(MessagesState):
 SupervisorLLM = init_chat_model(model="gpt-4o-mini", temperature=0)
 CoordinatorLLM = init_chat_model(model="gpt-4o-mini", temperature=0)
 FitnessAssistantLLM = init_chat_model(model="gpt-4o-mini", temperature=0)
-GeneralAssistantLLM = init_chat_model(model="gpt-4o-mini", temperature=0)
+GeneralAssistantLLM = init_chat_model(model="gpt-4o", temperature=0)
 ResponseCuratorLLM = init_chat_model(model="gpt-4o-mini", temperature=0)
 
 # System messages
@@ -63,9 +63,22 @@ sys_msg_fitness = SystemMessage(content="""You are a fitness assistant agent tha
 - Stay focused only on your assigned tasks
 """)
 
-sys_msg_general = SystemMessage(content="""You are a helpful general assistant. 
-    For fitness-related questions, please direct users to ask more specifically about fitness topics.
-    For any other questions, politely decline and direct to user on what you are allowed to do.""")
+sys_msg_general = SystemMessage(content="""You are a general assistant with strictly limited capabilities.
+
+You are ONLY allowed to:
+- Respond to basic greetings (hello, hi, good morning, etc.)
+- Provide your name and basic introduction
+- Direct fitness-related questions to the fitness assistant
+
+For ANY other requests (including but not limited to movies, entertainment, general advice, recommendations, information lookup, etc.):
+- Politely decline the request
+- Do NOT offer alternative help or suggestions
+- Do NOT provide partial information or workarounds
+- Simply state that you cannot assist with that type of request
+- Redirect them to ask about topics within your scope (greetings and fitness redirection only)
+
+Example decline: "I'm sorry, but I cannot assist with that type of request. I can only handle basic greetings and direct fitness-related questions to the appropriate specialist."
+""")
 
 sys_msg_coordinator = SystemMessage(content="""You are a coordinator agent that manages the execution of specialist agents based on supervisor instructions.
 
@@ -90,15 +103,17 @@ sys_msg_response_curator = SystemMessage(content="""You are a response curator a
 
 Your job is to:
 1. Take the raw responses from specialist agents
-2. Consider the original user query
-3. Create a well-formatted, coherent, and helpful final response
+2. Use ONLY the raw responses to create a well-formatted, coherent response in markdown format
+3. NEVER add your own knowledge or override agent decisions
+4. If agents decline to answer or say they cannot help, preserve that message exactly
+5. Do not attempt to answer questions that specialist agents declined
 
 Guidelines:
 - If multiple agents responded, integrate their responses naturally
-- Maintain the expertise and accuracy of the original responses
+- If an agent declined to help, preserve and format that decline politely
+- Maintain the expertise and accuracy of the original raw responses
 - Format the response to be clear and user-friendly
-- Address the user's original question directly
-- If responses conflict, present both perspectives clearly""")
+- NEVER generate your own answers when agents have declined""")
 
 # Nodes
 def SupervisorAgent(state: CoordinationState):
@@ -225,12 +240,14 @@ def ResponseCurator(state: CoordinationState):
     Specialist Agent Responses:
     {formatted_responses}
     
-    Please create a comprehensive, well-structured, and beautifully formatted final response that:
-    1. Directly addresses the user's query
-    2. Integrates insights from all specialist agents naturally
-    3. Uses proper formatting with headers, bullet points, or sections as appropriate
-    4. Provides a cohesive and professional response
-    5. If multiple perspectives are available, synthesize them thoughtfully
+    Please format the above specialist responses in a clear, well-structured markdown format. 
+    
+    IMPORTANT RULES:
+    - Use ONLY the content provided by specialist agents
+    - If agents declined to help or said they cannot answer, preserve that message
+    - Do NOT add your own knowledge or generate answers
+    - Simply format and present what the specialist agents provided
+    - If all agents declined, format their decline messages clearly
     """
     
     final_response = ResponseCuratorLLM.invoke([sys_msg_response_curator, HumanMessage(content=curation_prompt)])
