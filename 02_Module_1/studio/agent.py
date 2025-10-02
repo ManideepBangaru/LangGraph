@@ -4,6 +4,9 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import START, StateGraph, MessagesState
 from langgraph.prebuilt import tools_condition, ToolNode
 
+from dotenv import load_dotenv
+load_dotenv("../../.env")
+
 def add(a: int, b: int) -> int:
     """Adds a and b.
 

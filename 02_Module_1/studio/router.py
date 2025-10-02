@@ -3,6 +3,9 @@ from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 
+from dotenv import load_dotenv
+load_dotenv("../../.env")
+
 # Tool
 def multiply(a: int, b: int) -> int:
     """Multiplies a and b.
